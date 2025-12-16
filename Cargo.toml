@@ -1,0 +1,17 @@
+[package]
+name = "safefile"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+aes-gcm = "0.10.3"
+bincode = { version = "2.0.1", features = ["serde"] }
+hex = "0.4.3"
+serde = { version = "1.0.228", features = ["derive"] }
+sss-rs = "0.13.0"
+clap = { version = "4.3", features = ["derive"] }
+sha2 = "0.10"
+rand = "0.8"
+colored = "2.0"
+chrono = "0.4.42"
+aes-gcm-stream = "0.2.4"
