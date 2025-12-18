@@ -3,6 +3,10 @@ mod consts;
 mod container;
 mod crypto;
 mod error;
+mod format;
+mod ops;
+mod shamir;
+mod stream_aes;
 mod utils;
 
 use chrono::{TimeZone, Utc};
@@ -10,7 +14,9 @@ use clap::Parser;
 use cli::{Cli, Commands};
 use colored::Colorize;
 use error::Error;
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+};
 
 fn main() {
     let res = run();
@@ -54,14 +60,26 @@ fn run() -> Result<(), Error> {
                     .unwrap_or_else(|| PathBuf::from(".")),
             };
 
-            let result = crypto::encrypt_and_split(
+            let time_start = std::time::Instant::now();
+
+            let pb = indicatif::ProgressBar::no_length().with_style(progress_style!());
+
+            let result = ops::encrypt_and_split(
                 &input,
                 &output,
                 &outdir_path,
                 shares_u8,
                 threshold_u8,
                 label.as_deref(),
+                |processed, total| {
+                    pb.set_length(total);
+                    pb.set_position(processed);
+                },
             )?;
+
+            pb.finish_and_clear();
+
+            let time_elapsed = time_start.elapsed().as_micros();
 
             let when = Utc
                 .timestamp_opt(result.info.timestamp as i64, 0)
@@ -79,20 +97,11 @@ fn run() -> Result<(), Error> {
                 "Size:",
                 utils::bytes_to_human_readable(result.info.ciphertext_len)
             );
-            table_row!(
-                "Duration:",
-                format!(
-                    "{} (IO: {}, Crypto: {})",
-                    utils::us_to_human_readable(result.time.io_us + result.time.crypto_us),
-                    utils::us_to_human_readable(result.time.io_us),
-                    utils::us_to_human_readable(result.time.crypto_us),
-                )
-            );
+            table_row!("Duration:", utils::us_to_human_readable(time_elapsed));
             table_row!(
                 "Avg speed:",
                 utils::bytes_to_human_readable(
-                    (result.info.ciphertext_len as u128 * 1_000_000 / result.time.crypto_us)
-                        as usize
+                    (result.info.ciphertext_len as u128 * 1_000_000 / time_elapsed) as usize
                 ) + "/s"
             );
             println!(
@@ -115,32 +124,35 @@ fn run() -> Result<(), Error> {
             );
 
             let share_paths: Vec<&Path> = shares.iter().map(|p| p.as_path()).collect();
-            let written = crypto::decrypt_and_reconstruct(&input, &output, &share_paths)?;
+            let time_start = std::time::Instant::now();
+
+            let pb = indicatif::ProgressBar::no_length().with_style(progress_style!());
+
+            let written =
+                ops::decrypt_and_reconstruct(&input, &output, &share_paths, |processed, total| {
+                    pb.set_length(total);
+                    pb.set_position(processed);
+                })?;
+
+            pb.finish_and_clear();
+
+            let time_elapsed = time_start.elapsed().as_micros();
             println!("{} {}", "Recovered:".green(), written.output_file);
             table_row!(
                 "Size:",
                 utils::bytes_to_human_readable(written.info.ciphertext_len)
             );
-            table_row!(
-                "Duration:",
-                format!(
-                    "{} (IO: {}, Crypto: {})",
-                    utils::us_to_human_readable(written.time.io_us + written.time.crypto_us),
-                    utils::us_to_human_readable(written.time.io_us),
-                    utils::us_to_human_readable(written.time.crypto_us),
-                )
-            );
+            table_row!("Duration:", utils::us_to_human_readable(time_elapsed));
             table_row!(
                 "Avg speed:",
                 utils::bytes_to_human_readable(
-                    (written.info.ciphertext_len as u128 * 1_000_000 / written.time.crypto_us)
-                        as usize
+                    (written.info.ciphertext_len as u128 * 1_000_000 / time_elapsed) as usize
                 ) + "/s"
             );
         }
         Commands::Info { input } => {
             println!("{} {}", "Inspecting:".green().bold(), input.display());
-            let info = crypto::inspect_safe_from_path(&input)?;
+            let info = format::inspect_safe_from_path(&input)?;
             let when = Utc
                 .timestamp_opt(info.timestamp as i64, 0)
                 .single()

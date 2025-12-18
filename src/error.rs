@@ -31,8 +31,6 @@ pub enum Error {
         path: PathBuf,
     },
 
-    EncryptionFailed,
-    DecryptionFailed,
     InvalidAuthenticationTag,
 
     NotEnoughShares {
@@ -42,6 +40,7 @@ pub enum Error {
     SharingFailed {
         details: String,
     },
+    #[allow(unused)]
     ShareCorrupted {
         path: PathBuf,
     },
@@ -51,6 +50,7 @@ pub enum Error {
     ShareVerificationFailed {
         details: String,
     },
+    #[allow(unused)]
     OtherShareReconstructionError {
         details: String,
     },
@@ -100,10 +100,6 @@ impl fmt::Display for Error {
                 write!(f, "File '{}' is truncated or incomplete", path.display())
             }
 
-            Error::EncryptionFailed => write!(f, "Encryption failed"),
-            Error::DecryptionFailed => {
-                write!(f, "Decryption failed: invalid key or corrupted data")
-            }
             Error::InvalidAuthenticationTag => {
                 write!(f, "Decryption failed: authentication tag mismatch")
             }
@@ -169,11 +165,5 @@ impl From<bincode::error::DecodeError> for Error {
         Error::InternalError {
             details: format!("bincode decode error: {}", e),
         }
-    }
-}
-
-impl From<aes_gcm::Error> for Error {
-    fn from(_e: aes_gcm::Error) -> Self {
-        Error::EncryptionFailed
     }
 }
