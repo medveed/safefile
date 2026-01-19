@@ -1,22 +1,16 @@
 mod cli;
-mod consts;
-mod container;
-mod crypto;
-mod error;
-mod format;
-mod ops;
-mod shamir;
-mod stream_aes;
-mod utils;
+mod formatting;
 
 use chrono::{TimeZone, Utc};
 use clap::Parser;
 use cli::{Cli, Commands};
 use colored::Colorize;
-use error::Error;
+
 use std::{
     path::{Path, PathBuf},
 };
+
+use safefile::{error::Error, format, ops, utils};
 
 fn main() {
     let res = run();
@@ -101,7 +95,7 @@ fn run() -> Result<(), Error> {
             table_row!(
                 "Avg speed:",
                 utils::bytes_to_human_readable(
-                    (result.info.ciphertext_len as u128 * 1_000_000 / time_elapsed) as usize
+                    (result.info.ciphertext_len as u128 * 1_000_000 / time_elapsed) as u64
                 ) + "/s"
             );
             println!(
@@ -146,7 +140,7 @@ fn run() -> Result<(), Error> {
             table_row!(
                 "Avg speed:",
                 utils::bytes_to_human_readable(
-                    (written.info.ciphertext_len as u128 * 1_000_000 / time_elapsed) as usize
+                    (written.info.ciphertext_len as u128 * 1_000_000 / time_elapsed) as u64
                 ) + "/s"
             );
         }

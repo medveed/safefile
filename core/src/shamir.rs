@@ -1,10 +1,16 @@
+//! Shamir Secret Sharing helpers and share file handling.
+
 use crate::container::ShareFile;
 use crate::error::Error;
 use sha2::{Digest, Sha256};
 use sss_rs::prelude::share;
 use std::fs;
 use std::path::{Path};
+use zeroize::Zeroize;
 
+/// Create SSS shares for `key` and save them to `outdir`.
+///
+/// The files are named `share_001.bin`, `share_002.bin`, ...
 pub fn create_shares(
     key: &[u8],
     threshold: u8,
@@ -13,7 +19,7 @@ pub fn create_shares(
     label: &str,
     timestamp: u64,
 ) -> Result<Vec<String>, Error> {
-    let shares_vec = share(key, threshold, shares, true).map_err(|e| match e {
+    let mut shares_vec = share(key, threshold, shares, true).map_err(|e| match e {
         sss_rs::wrapped_sharing::Error::IOError(io_err) => io_err.into(),
         sss_rs::wrapped_sharing::Error::OtherSharingError(basic) => match basic {
             sss_rs::basic_sharing::Error::UnreconstructableSecret(required, provided) => {
@@ -49,9 +55,17 @@ pub fn create_shares(
         paths.push(filename.to_string_lossy().into_owned());
     }
 
+    // Zero shares in memory after writing to disk
+    for s in shares_vec.iter_mut() {
+        s.zeroize();
+    }
+
     Ok(paths)
 }
 
+/// Reconstruct the original key from a set of share file paths.
+///
+/// The function will validate each share's checksum.
 pub fn reconstruct_key(share_paths: &[&Path]) -> Result<Vec<u8>, Error> {
     let mut shares_buf = Vec::new();
     for p in share_paths {
@@ -68,5 +82,11 @@ pub fn reconstruct_key(share_paths: &[&Path]) -> Result<Vec<u8>, Error> {
     }
 
     let key = sss_rs::prelude::reconstruct(&shares_buf, true).map_err(|e| Error::InternalError { details: format!("reconstruct failed: {}", e) })?;
+
+    // Zero share buffers
+    for s in shares_buf.iter_mut() {
+        s.zeroize();
+    }
+
     Ok(key)
 }

@@ -1,9 +1,10 @@
+//! Wrapper around `aes_gcm_stream`
+
 use crate::error::Error;
 use aes_gcm_stream::{
     Aes256GcmStreamEncryptor,
     Aes256GcmStreamDecryptor,
 };
-use colored::Colorize;
 
 pub struct Encryptor {
     inner: Aes256GcmStreamEncryptor,
@@ -46,9 +47,6 @@ impl Decryptor {
     pub fn finalize(&mut self) -> Result<Vec<u8>, Error> {
         self.inner
             .finalize()
-            .map_err(|e| {
-                println!("Decryption finalize error: {}", e.to_string().red());
-                Error::InvalidAuthenticationTag
-            })
+            .map_err(|_e| Error::InvalidAuthenticationTag)
     }
 }

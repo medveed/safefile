@@ -73,8 +73,11 @@ where
     let nonce = header.nonce;
 
     let file_size = reader.get_ref().metadata()?.len();
-    let data_start = 8 + header_len as u64; // magic (4) + header length (4) + header bytes
-    let total_crypto_len = header.ciphertext_len as u64 + 16; // ciphertext + tag
+
+    // Expected data position: magic (4) + header length (4) + header bytes
+    let data_start = 8 + header_len as u64;
+    // Ciphertext length read from the header + 16-byte tag
+    let total_crypto_len = header.ciphertext_len as u64 + 16;
 
     if file_size != data_start + total_crypto_len {
         return Err(Error::InvalidFormat {

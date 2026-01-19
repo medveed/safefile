@@ -1,4 +1,4 @@
-pub fn bytes_to_human_readable(bytes: usize) -> String {
+pub fn bytes_to_human_readable(bytes: u64) -> String {
     const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
     let mut size = bytes as f64;
     let mut unit_index = 0;
@@ -19,26 +19,6 @@ pub fn us_to_human_readable(us: u128) -> String {
     } else {
         format!("{:.2} min", us as f64 / 60_000_000.0)
     }
-}
-
-#[macro_export]
-macro_rules! table_row {
-    ($label:expr, $value:expr) => {
-        println!("{:10} {}", $label.yellow(), $value);
-    };
-}
-
-#[macro_export]
-macro_rules! avg_speed {
-    ($size:expr, $ms:expr) => {
-        if $ms == 0 {
-            "N/A".to_string()
-        } else {
-            let speed = ($size as u128 * 1000) / $ms;
-            utils::bytes_to_human_readable(speed as usize) + "/s"
-        }
-    };
-    () => {};
 }
 
 pub struct Timer {

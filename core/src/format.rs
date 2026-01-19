@@ -1,15 +1,19 @@
+//! Utilities for writing and reading the safefile header.
+
 use crate::container::SafeHeader;
 use crate::error::Error;
 use std::{fs::File, io::{Read, Write}, path::{Path, PathBuf}};
 use crate::consts;
 
+/// Lightweight inspection information extracted from a safefile header.
 pub struct SafeInfo {
     pub version: u8,
     pub timestamp: u64,
     pub label: String,
-    pub ciphertext_len: usize,
+    pub ciphertext_len: u64,
 }
 
+/// Encode and write the header to `w`.
 pub fn write_header<W: Write>(
     w: &mut W,
     header: &SafeHeader,
@@ -26,6 +30,9 @@ pub fn write_header<W: Write>(
     Ok(())
 }
 
+/// Read and decode the header from `r`.
+///
+/// Returns the decoded `SafeHeader` and the size of the header.
 pub fn read_header<R: Read>(
     r: &mut R,
     path: PathBuf,
@@ -66,6 +73,7 @@ pub fn read_header<R: Read>(
     Ok((header, header_len as u32))
 }
 
+/// Open a safefile and return basic header information.
 pub fn inspect_safe_from_path(safe_path: &Path) -> Result<SafeInfo, Error> {
     let mut f = File::open(safe_path).map_err(|e| Error::Io {
         path: Some(safe_path.to_path_buf()),

@@ -1,6 +1,18 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
+#[macro_export]
+macro_rules! progress_style {
+    () => {
+        indicatif::ProgressStyle::default_bar()
+            .template(
+                "{spinner:.green} [{elapsed_precise}] [{bar:40}] {bytes}/{total_bytes} (ETA {eta})",
+            )
+            .unwrap()
+            .progress_chars("=> ")
+    };
+}
+
 #[derive(Parser)]
 #[command(
     author,
@@ -14,7 +26,9 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    #[command(about = "Encrypt a file and split the key into shares (default 5 shares, threshold 3)")]
+    #[command(
+        about = "Encrypt a file and split the key into shares (default 5 shares, threshold 3)"
+    )]
     Encrypt {
         input: PathBuf,
         output: PathBuf,
@@ -34,7 +48,5 @@ pub enum Commands {
         shares: Vec<PathBuf>,
     },
     #[command(about = "Inspect a safe file and display its metadata")]
-    Info {
-        input: PathBuf,
-    },
+    Info { input: PathBuf },
 }

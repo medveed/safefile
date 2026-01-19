@@ -1,3 +1,5 @@
+//! High-level operations that compose encryption and secret sharing.
+
 use crate::consts;
 use crate::container::SafeHeader;
 use crate::crypto;
@@ -10,6 +12,7 @@ use aes_gcm::aead::OsRng;
 use aes_gcm::aead::rand_core::RngCore;
 use std::path::Path;
 use std::time::SystemTime;
+use zeroize::Zeroize;
 
 pub struct EncryptResult {
     #[allow(unused)]
@@ -23,6 +26,11 @@ pub struct DecryptResult {
     pub info: SafeInfo,
 }
 
+/// Does the whole process of encyprion and splitting.
+/// 
+/// - Generates a random 256-bit key
+/// - Stream-encrypts an input file with AES-256-GCM
+/// - Splits the key using SSS and writes shares to disk
 pub fn encrypt_and_split<F>(
     input: &Path,
     output: &Path,
@@ -43,7 +51,7 @@ where
         path: Some(input.to_path_buf()),
         source: e,
     })?;
-    let pt_len = metadata.len() as usize;
+    let pt_len = metadata.len();
     io_timer.stop();
 
     crypto_timer.start();
@@ -75,6 +83,10 @@ where
 
     crypto_timer.start();
     let share_paths = shamir::create_shares(&key, threshold, shares, outdir, &lab, ts)?;
+
+    // Zero the key and nonce
+    key.zeroize();
+    nonce.zeroize();
     crypto_timer.stop();
 
     let info = format::inspect_safe_from_path(output)?;
@@ -91,6 +103,12 @@ where
     })
 }
 
+
+/// Does the whole process of recunstruction and decryption.
+/// 
+/// - Reads key shares
+/// - Tries to reconstruct the key
+/// - Stream-decrypts the safefile
 pub fn decrypt_and_reconstruct<F>(
     safe_path: &Path,
     output: &Path,
@@ -103,7 +121,7 @@ where
     let mut timer = utils::Timer::new();
     timer.start();
 
-    let key_vec = shamir::reconstruct_key(share_paths)?;
+    let mut key_vec = shamir::reconstruct_key(share_paths)?;
     let mut key = [0u8; 32];
     if key_vec.len() != 32 {
         return Err(Error::InternalError {
@@ -112,7 +130,12 @@ where
     }
     key.copy_from_slice(&key_vec);
 
+    key_vec.zeroize();
+
     crypto::decrypt_stream(safe_path, output, key, progress_callback)?;
+
+    // Zero key after decryption
+    key.zeroize();
 
     let info = format::inspect_safe_from_path(safe_path)?;
 

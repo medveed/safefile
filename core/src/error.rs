@@ -1,3 +1,5 @@
+//! Crate error definitions and conversion helpers.
+
 use std::fmt;
 use std::path::PathBuf;
 
@@ -137,17 +139,9 @@ impl std::error::Error for Error {}
 
 impl From<std::io::Error> for Error {
     fn from(e: std::io::Error) -> Self {
-        match e.kind() {
-            std::io::ErrorKind::NotFound => Error::NotFound {
-                path: PathBuf::from(e.to_string()),
-            },
-            std::io::ErrorKind::PermissionDenied => Error::PermissionDenied {
-                path: PathBuf::from(e.to_string()),
-            },
-            _ => Error::Io {
-                path: None,
-                source: e,
-            },
+        Error::Io {
+            path: None,
+            source: e,
         }
     }
 }
